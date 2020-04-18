@@ -11,7 +11,7 @@ struct log_t {
   static log_t &inst() {
     static log_t *log = nullptr;
     if (!log) {
-      log = new log_t("ddraw_log.txt");
+      log = new log_t("dinput_log.txt");
     }
     assert(log);
     return *log;

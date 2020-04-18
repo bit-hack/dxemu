@@ -1,5 +1,6 @@
 #pragma once
 
+#include "IDirectDraw.h"
 #include "IDirectDrawClipper.h"
 
 ULONG __stdcall IDirectDrawClipper_t::AddRef(void) {
@@ -10,8 +11,7 @@ ULONG __stdcall IDirectDrawClipper_t::AddRef(void) {
 ULONG __stdcall IDirectDrawClipper_t::Release(void) {
   __debugbreak();
   if (--_ref_count == 0) {
-    // free thy self!
-    delete this;
+    _ddraw->_freeClipper(this);
     return 0;
   }
   return _ref_count;

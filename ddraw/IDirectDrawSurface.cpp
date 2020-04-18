@@ -5,17 +5,16 @@
 
 #include "IDirectDraw.h"
 #include "IDirectDrawSurface.h"
+#include "IDirectDrawPalette.h"
+
 
 ULONG __stdcall IDirectDrawSurface_t::AddRef(void) {
-  __debugbreak();
   return ++_ref_count;
 }
 
 ULONG __stdcall IDirectDrawSurface_t::Release(void) {
-  __debugbreak();
   if (--_ref_count == 0) {
-    // free thy self!
-    delete this;
+    _ddraw->_freeSurface(this);
     return 0;
   }
   return _ref_count;
@@ -38,10 +37,37 @@ HRESULT __stdcall IDirectDrawSurface_t::AddOverlayDirtyRect(LPRECT a) {
   return 0;
 }
 
-HRESULT __stdcall IDirectDrawSurface_t::Blt(LPRECT a, IDirectDrawSurface *b,
-                                            LPRECT c, DWORD d, LPDDBLTFX e) {
-//  __debugbreak();
-  return 0;
+HRESULT __stdcall IDirectDrawSurface_t::Blt(LPRECT lpDstRect,
+                                            IDirectDrawSurface *lpDDSrcSurface,
+                                            LPRECT lpSrcRect,
+                                            DWORD dwFlags,
+                                            LPDDBLTFX lpDDBltFX) {
+
+  const IDirectDrawSurface_t *source = (const IDirectDrawSurface_t*)lpDDSrcSurface;
+
+  const uint8_t *src = source->_buffer._pixels;
+  uint8_t *dst = _buffer._pixels;
+
+  src += lpSrcRect->left + lpSrcRect->top * source->_buffer._pitch;
+  dst += lpDstRect->left + lpDstRect->top * _buffer._pitch;
+
+  int32_t w = min(lpSrcRect->right - lpSrcRect->left,
+                  lpDstRect->right - lpDstRect->left);
+  int32_t h = min(lpSrcRect->bottom - lpSrcRect->top,
+                  lpDstRect->bottom - lpDstRect->top);
+
+  for (int32_t y = 0; y < h; ++y) {
+    for (int32_t x = 0; x < w; ++x) {
+      dst[x] = src[x];
+    }
+    src += source->_buffer._pitch;
+    dst += _buffer._pitch;
+  }
+
+  if (this == _ddraw->_primarySurface) {
+    _ddraw->_redrawWindow();
+  }
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::BltBatch(LPDDBLTBATCH a, DWORD b,
@@ -153,18 +179,39 @@ HRESULT __stdcall IDirectDrawSurface_t::Initialize(IDirectDraw *ddraw,
     return DDERR_INVALIDPARAMS;
   }
 
-  _buffer._bpp = 4;
+  _buffer._bpp = 1;
+
+  if (desc.dwFlags & DDSD_PIXELFORMAT) {
+    _buffer._bpp = (desc.ddpfPixelFormat.dwRGBBitCount / 8);
+  }
 
   if (desc.dwFlags & DDSD_CAPS) {
     const uint32_t caps = desc.ddsCaps.dwCaps;
     if (caps & DDSCAPS_PALETTE) {
       _buffer._bpp = 1;
     }
+    if (caps & DDSCAPS_PRIMARYSURFACE) {
+      _buffer._bpp = _ddraw->_displayMode._bpp / 8;
+      _buffer._width  = _ddraw->_displayMode._width;
+      _buffer._height = _ddraw->_displayMode._height;
+      _buffer._pitch  = _buffer._width * _buffer._bpp;
+    }
   }
 
-  _buffer._width  = _ddraw->_displayMode._width;
-  _buffer._height = _ddraw->_displayMode._height;
-  _buffer._pitch  = round_up(_buffer._width, 16) * _buffer._bpp;
+  if (desc.dwFlags & DDSD_WIDTH) {
+    _buffer._width = desc.dwWidth;
+    _buffer._pitch = desc.dwWidth;
+  }
+  if (desc.dwFlags & DDSD_HEIGHT) {
+    _buffer._height = desc.dwHeight;
+  }
+  if (desc.dwFlags & DDSD_PITCH) {
+    _buffer._pitch = desc.lPitch;
+  }
+
+  if (_buffer._width == 0 || _buffer._height == 0) {
+    return DDERR_INVALIDPARAMS;
+  }
 
   const size_t size = _buffer._pitch * _buffer._height;
   _buffer._pixels = (uint8_t*)_aligned_malloc(size, 16);
@@ -253,13 +300,20 @@ HRESULT __stdcall IDirectDrawSurface_t::SetOverlayPosition(LONG, LONG) {
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::SetPalette(LPDIRECTDRAWPALETTE lpDDPalette) {
-//  __debugbreak();
-  return 0;
+  if (_palette) {
+    _palette->Release();
+    _palette = nullptr;
+  }
+  _palette = (IDirectDrawPalette_t*)lpDDPalette;
+  _palette->AddRef();
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::Unlock(LPVOID a) {
-//  __debugbreak();
-  return 0;
+  if (this == _ddraw->_primarySurface) {
+    _ddraw->_redrawWindow();
+  }
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::UpdateOverlay(LPRECT,

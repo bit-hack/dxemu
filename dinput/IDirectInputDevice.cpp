@@ -1,4 +1,5 @@
 #include "IDirectInputDevice.h"
+#include "log.h"
 
 ULONG __stdcall IDirectInputDevice_t::AddRef(void) {
   __debugbreak();
@@ -38,33 +39,33 @@ HRESULT __stdcall IDirectInputDevice_t::GetProperty(REFGUID, LPDIPROPHEADER) {
 }
 
 HRESULT __stdcall IDirectInputDevice_t::SetProperty(REFGUID, LPCDIPROPHEADER) {
-//  __debugbreak();
+  //  __debugbreak();
   return DI_OK;
 }
 
 HRESULT __stdcall IDirectInputDevice_t::Acquire() {
-//  __debugbreak();
+  //  __debugbreak();
   return DI_OK;
 }
 
 HRESULT __stdcall IDirectInputDevice_t::Unacquire() {
-//  __debugbreak();
+  //  __debugbreak();
   return DI_OK;
 }
 
-HRESULT __stdcall IDirectInputDevice_t::GetDeviceState(DWORD cbData, LPVOID lpvData) {
-//  __debugbreak();
+HRESULT __stdcall IDirectInputDevice_t::GetDeviceState(DWORD cbData,
+                                                       LPVOID lpvData) {
+  //  __debugbreak();
 
   memset(lpvData, 0, cbData);
 
   return DI_OK;
 }
 
-HRESULT __stdcall IDirectInputDevice_t::GetDeviceData(DWORD cbObjectData,
-                                                      LPDIDEVICEOBJECTDATA rgdod,
-                                                      LPDWORD pdwInOut,
-                                                      DWORD dwFlags) {
-//  __debugbreak();
+HRESULT __stdcall IDirectInputDevice_t::GetDeviceData(
+    DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut,
+    DWORD dwFlags) {
+  //  __debugbreak();
 
   *pdwInOut = 0;
 
@@ -72,7 +73,7 @@ HRESULT __stdcall IDirectInputDevice_t::GetDeviceData(DWORD cbObjectData,
 }
 
 HRESULT __stdcall IDirectInputDevice_t::SetDataFormat(LPCDIDATAFORMAT) {
-//  __debugbreak();
+  //  __debugbreak();
   return DI_OK;
 }
 
@@ -82,7 +83,7 @@ HRESULT __stdcall IDirectInputDevice_t::SetEventNotification(HANDLE) {
 }
 
 HRESULT __stdcall IDirectInputDevice_t::SetCooperativeLevel(HWND, DWORD) {
-//  __debugbreak();
+  //  __debugbreak();
   return DI_OK;
 }
 
@@ -102,7 +103,9 @@ HRESULT __stdcall IDirectInputDevice_t::RunControlPanel(HWND, DWORD) {
   return DI_OK;
 }
 
-HRESULT __stdcall IDirectInputDevice_t::Initialize(HINSTANCE hinst, DWORD dwVersion, REFGUID guid) {
-//  __debugbreak();
+HRESULT __stdcall IDirectInputDevice_t::Initialize(HINSTANCE hinst,
+                                                   DWORD dwVersion,
+                                                   REFGUID guid) {
+  //  __debugbreak();
   return DI_OK;
 }

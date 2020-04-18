@@ -1,6 +1,6 @@
 #include "IDirectInput.h"
 #include "IDirectInputDevice.h"
-
+#include "log.h"
 
 ULONG __stdcall IDirectInput_t::AddRef(void) {
   __debugbreak();
@@ -26,7 +26,6 @@ HRESULT __stdcall IDirectInput_t::QueryInterface(REFIID riid,
 HRESULT __stdcall IDirectInput_t::CreateDevice(REFGUID guid,
                                                LPDIRECTINPUTDEVICEA *lpDIDevice,
                                                LPUNKNOWN) {
-//  __debugbreak();
 
   IDirectInputDevice_t *inst = new IDirectInputDevice_t(this);
   HRESULT res = inst->Initialize(_hinst, _version, guid);
@@ -58,7 +57,7 @@ HRESULT __stdcall IDirectInput_t::RunControlPanel(HWND, DWORD) {
 }
 
 HRESULT __stdcall IDirectInput_t::Initialize(HINSTANCE hInst, DWORD dwVersion) {
-//  __debugbreak();
+  //  __debugbreak();
 
   _hinst = hInst;
   _version = dwVersion;

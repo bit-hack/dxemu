@@ -52,17 +52,8 @@ HRESULT __stdcall IDirectDraw_t::Compact(void) {
 
 HRESULT __stdcall IDirectDraw_t::CreateClipper(
     DWORD dwFlags, LPDIRECTDRAWCLIPPER *lplpDDrawClipper, IUnknown *c) {
-
   __debugbreak();
-  *lplpDDrawClipper = nullptr;
-  IDirectDrawClipper_t *clipper = new IDirectDrawClipper_t(this);
-  HRESULT res = clipper->Initialize(this, dwFlags);
-  if (res == DD_OK) {
-    *lplpDDrawClipper = clipper;
-    return DD_OK;
-  }
-  clipper->Release();
-  return res;
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDraw_t::CreatePalette(
@@ -73,28 +64,42 @@ HRESULT __stdcall IDirectDraw_t::CreatePalette(
   *lplpDDPalette = nullptr;
   IDirectDrawPalette_t *palette = new IDirectDrawPalette_t(this);
   HRESULT res = palette->Initialize(this, dwFlags, lpDDColorArray);
-  if (res == DD_OK) {
-    *lplpDDPalette = palette;
-    return DD_OK;
+  if (res != DD_OK) {
+    palette->Release();
+    return res;
   }
-  palette->Release();
-  return res;
+
+  _palettes.push_back(palette);
+
+  *lplpDDPalette = palette;
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDraw_t::CreateSurface(
     LPDDSURFACEDESC desc, LPDIRECTDRAWSURFACE *lplpDDSurface,
     IUnknown *pUnkOuter) {
 
-//  __debugbreak();
   *lplpDDSurface = nullptr;
   IDirectDrawSurface_t *surface = new IDirectDrawSurface_t(this);
   HRESULT res = surface->Initialize(this, desc);
-  if (res == DD_OK) {
-    *lplpDDSurface = surface;
-    return DD_OK;
+  if (res != DD_OK) {
+    surface->Release();
+    return res;
   }
-  surface->Release();
-  return res;
+
+  _surfaces.push_back(surface);
+
+  if (desc->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE) {
+    // this is the primary surface
+    _primarySurface = surface;
+
+    const size_t size = surface->_buffer._width * surface->_buffer._height;
+    _pixels.reset(new uint32_t[size]);
+    memset(_pixels.get(), 0xff, size * sizeof(uint32_t));
+  }
+
+  *lplpDDSurface = surface;
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDraw_t::DuplicateSurface(LPDIRECTDRAWSURFACE a,
@@ -190,8 +195,19 @@ HRESULT __stdcall IDirectDraw_t::SetDisplayMode(DWORD width,
 
   ClipCursor(nullptr);
 
-  LONG_PTR ptr = SetWindowLongPtrA(_window, GWL_EXSTYLE, WS_EX_OVERLAPPEDWINDOW);
-  BOOL res = SetWindowPos(_window, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+  int32_t style = WS_OVERLAPPED | WS_TILEDWINDOW;
+  int32_t styleEx = WS_EX_OVERLAPPEDWINDOW;
+
+  LONG_PTR ptr = SetWindowLongPtrA(_window, GWL_STYLE, style);
+  ptr = SetWindowLongPtrA(_window, GWL_EXSTYLE, styleEx);
+
+  RECT rect = {0, 0, width, height};
+  if (AdjustWindowRect(&rect, style, FALSE)) {
+    MoveWindow(_window, 64, 64, (rect.right-rect.left), (rect.bottom-rect.top), FALSE);
+  }
+  else {
+    MoveWindow(_window, 64, 64, width + 32, height + 32, FALSE);
+  }
 
   UpdateWindow(_window);
   ShowWindow(_window, SW_SHOW);
@@ -202,4 +218,81 @@ HRESULT __stdcall IDirectDraw_t::SetDisplayMode(DWORD width,
 HRESULT __stdcall IDirectDraw_t::WaitForVerticalBlank(DWORD a, HANDLE b) {
   __debugbreak();
   return 0;
+}
+
+void IDirectDraw_t::_freeSurface(IDirectDrawSurface_t *s) {
+  if (_primarySurface == s) {
+    __debugbreak();
+    _primarySurface = nullptr;
+  }
+  for (auto itt = _surfaces.begin(); itt != _surfaces.end();) {
+    itt = (*itt == s) ? _surfaces.erase(itt) : ++itt;
+  }
+}
+
+void IDirectDraw_t::_freePalette(IDirectDrawPalette_t *p) {
+  for (auto itt = _palettes.begin(); itt != _palettes.end();) {
+    itt = (*itt == p) ? _palettes.erase(itt) : ++itt;
+  }
+}
+
+void IDirectDraw_t::_freeClipper(IDirectDrawClipper_t *c) {
+  for (auto itt = _clippers.begin(); itt != _clippers.end();) {
+    itt = (*itt == c) ? _clippers.erase(itt) : ++itt;
+  }
+}
+
+void IDirectDraw_t::_redrawWindow() {
+
+  if (!_primarySurface || !_pixels) {
+    return;
+  }
+
+  HDC dc = GetDC(_window);
+  if (dc == NULL) {
+    return;
+  }
+
+  const auto &buffer = _primarySurface->_buffer;
+
+  IDirectDrawPalette_t *pal = _primarySurface->_palette;
+  if (pal) {
+    uint8_t *src = buffer._pixels + buffer._pitch * (_displayMode._height-1);
+    uint32_t *dst = _pixels.get();
+    for (int y = 0; y < _displayMode._height; ++y) {
+      for (int x = 0; x < _displayMode._width; ++x) {
+
+        const auto &p = pal->_entry[src[x]];
+
+        dst[x] = (p.peRed << 16) | (p.peGreen << 8) | (p.peBlue);
+      }
+      dst += _displayMode._width;
+      src -= buffer._pitch;
+    }
+
+  }
+  
+  BITMAPINFO bmp;
+  memset(&bmp, 0, sizeof(bmp));
+  BITMAPINFOHEADER &b = bmp.bmiHeader;
+  b.biSize     = sizeof(BITMAPINFOHEADER);
+  b.biBitCount = 32;
+  b.biWidth    = _displayMode._width;
+  b.biHeight   = _displayMode._height;
+  b.biPlanes   = 1;
+  b.biCompression = BI_RGB;
+
+  const int r =
+      StretchDIBits(dc,
+                    // src
+                    0, 0, int(b.biWidth), int(b.biHeight),
+                    // dst
+                    0, 0, int(b.biWidth), int(b.biHeight),
+                    // pixels
+                    _pixels.get(),
+                    &bmp,
+                    DIB_RGB_COLORS, SRCCOPY);
+
+  ReleaseDC(_window, dc);
+  ValidateRect(_window, NULL);
 }

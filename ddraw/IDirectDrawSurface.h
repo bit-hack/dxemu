@@ -10,10 +10,15 @@
 
 struct IDirectDrawSurface_t : public IDirectDrawSurface {
 
+  friend IDirectDraw_t;
+  friend IDirectDrawPalette_t;
+
   IDirectDrawSurface_t(IDirectDraw_t *ddraw)
     : _ref_count(1)
     , _ddraw(ddraw)
-    , _buffer{0} {}
+    , _buffer{0}
+    , _palette(nullptr) {
+  }
 
   ULONG __stdcall AddRef(void) override;
 
@@ -103,6 +108,8 @@ protected:
 
   int32_t _ref_count;
   IDirectDraw_t *_ddraw;
+
+  IDirectDrawPalette_t *_palette;
 
   buffer_t _buffer;
 };

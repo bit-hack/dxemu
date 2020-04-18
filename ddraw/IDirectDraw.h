@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <intrin.h>
+#include <vector>
+#include <memory>
 
 #define DIRECTDRAW_VERSION 0x300
 #include <ddraw.h>
@@ -14,7 +16,11 @@ struct IDirectDraw_t : public IDirectDraw {
   friend IDirectDrawClipper_t;
   friend IDirectDrawPalette_t;
 
-  IDirectDraw_t() : _ref_count(1), _window(nullptr) {}
+  IDirectDraw_t()
+    : _ref_count(1)
+    , _window(nullptr)
+    , _primarySurface(nullptr) {
+  }
 
   ULONG __stdcall AddRef(void) override;
 
@@ -72,6 +78,12 @@ struct IDirectDraw_t : public IDirectDraw {
   HRESULT __stdcall WaitForVerticalBlank(DWORD a, HANDLE b) override;
 
 protected:
+  void _redrawWindow();
+
+  void _freeSurface(IDirectDrawSurface_t *s);
+  void _freePalette(IDirectDrawPalette_t *p);
+  void _freeClipper(IDirectDrawClipper_t *c);
+
   int32_t _ref_count;
   HWND _window;
 
@@ -79,5 +91,12 @@ protected:
     uint32_t _width, _height, _bpp;
   };
 
+  std::unique_ptr<uint32_t[]> _pixels;
+
   displayMode_t _displayMode;
+
+  IDirectDrawSurface_t *_primarySurface;
+  std::vector<IDirectDrawSurface_t *> _surfaces;
+  std::vector<IDirectDrawPalette_t *> _palettes;
+  std::vector<IDirectDrawClipper_t *> _clippers;
 };

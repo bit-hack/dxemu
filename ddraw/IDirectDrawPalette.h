@@ -12,6 +12,8 @@
 
 struct IDirectDrawPalette_t : public IDirectDrawPalette {
 
+  friend IDirectDraw_t;
+
   IDirectDrawPalette_t(IDirectDraw_t *ddraw) : _ref_count(1), _ddraw(ddraw) {}
 
   ULONG __stdcall AddRef(void) override;

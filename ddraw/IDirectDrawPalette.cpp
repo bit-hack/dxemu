@@ -1,17 +1,16 @@
 #pragma once
 
+#include "IDirectDraw.h"
 #include "IDirectDrawPalette.h"
 
 ULONG __stdcall IDirectDrawPalette_t::AddRef(void) {
-  __debugbreak();
   return ++_ref_count;
 }
 
 ULONG __stdcall IDirectDrawPalette_t::Release(void) {
   __debugbreak();
   if (--_ref_count == 0) {
-    // free thy self!
-    delete this;
+    _ddraw->_freePalette(this);
     return 0;
   }
   return _ref_count;
@@ -53,7 +52,7 @@ HRESULT __stdcall IDirectDrawPalette_t::SetEntries(DWORD dwFlags,
                                                    DWORD dwCount,
                                                    PALETTEENTRY *lpEntries) {
 
-  for (int i = 0; i < dwCount; ++i) {
+  for (DWORD i = 0; i < dwCount; ++i) {
     _entry[dwStartingEntry + i] = lpEntries[i];
   }
   return DD_OK;
