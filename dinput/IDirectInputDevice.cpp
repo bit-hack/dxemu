@@ -1,4 +1,6 @@
+#define INITGUID
 #include "IDirectInputDevice.h"
+#include "IDirectInput.h"
 #include "log.h"
 
 ULONG __stdcall IDirectInputDevice_t::AddRef(void) {
@@ -55,25 +57,43 @@ HRESULT __stdcall IDirectInputDevice_t::Unacquire() {
 
 HRESULT __stdcall IDirectInputDevice_t::GetDeviceState(DWORD cbData,
                                                        LPVOID lpvData) {
-  //  __debugbreak();
+  if (*_guid == GUID_SysMouse) {
 
-  memset(lpvData, 0, cbData);
+    DIMOUSESTATE state;
+    memset(&state, 0, sizeof(state));
+
+    POINT pos = {0, 0};
+    GetCursorPos(&pos);
+
+    state.lX = pos.x - _old_mouse_pos.x;
+    state.lY = pos.y - _old_mouse_pos.y;
+
+    _old_mouse_pos = pos;
+
+    SHORT lmb = GetAsyncKeyState(VK_LBUTTON);
+    SHORT rmb = GetAsyncKeyState(VK_RBUTTON);
+
+    state.rgbButtons[0] = lmb ? 0xff : 0x00;
+    state.rgbButtons[1] = rmb ? 0xff : 0x00;
+
+    memcpy(lpvData, &state, sizeof(state));
+  }
 
   return DI_OK;
 }
 
 HRESULT __stdcall IDirectInputDevice_t::GetDeviceData(
-    DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut,
+    DWORD cbObjectData,
+    LPDIDEVICEOBJECTDATA rgdod,
+    LPDWORD pdwInOut,
     DWORD dwFlags) {
-  //  __debugbreak();
 
   *pdwInOut = 0;
 
   return DI_OK;
 }
 
-HRESULT __stdcall IDirectInputDevice_t::SetDataFormat(LPCDIDATAFORMAT) {
-  //  __debugbreak();
+HRESULT __stdcall IDirectInputDevice_t::SetDataFormat(LPCDIDATAFORMAT lpFormat) {
   return DI_OK;
 }
 
@@ -106,6 +126,10 @@ HRESULT __stdcall IDirectInputDevice_t::RunControlPanel(HWND, DWORD) {
 HRESULT __stdcall IDirectInputDevice_t::Initialize(HINSTANCE hinst,
                                                    DWORD dwVersion,
                                                    REFGUID guid) {
-  //  __debugbreak();
+
+  GetCursorPos(&_old_mouse_pos);
+
+  // save the guid
+  _guid = &guid;
   return DI_OK;
 }
