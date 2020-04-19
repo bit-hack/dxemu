@@ -8,7 +8,6 @@ ULONG __stdcall IDirectInput_t::AddRef(void) {
 }
 
 ULONG __stdcall IDirectInput_t::Release(void) {
-  __debugbreak();
   if (--_ref_count == 0) {
     // free thy self!
     delete this;
@@ -57,7 +56,6 @@ HRESULT __stdcall IDirectInput_t::RunControlPanel(HWND, DWORD) {
 }
 
 HRESULT __stdcall IDirectInput_t::Initialize(HINSTANCE hInst, DWORD dwVersion) {
-  //  __debugbreak();
 
   _hinst = hInst;
   _version = dwVersion;

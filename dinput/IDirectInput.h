@@ -13,7 +13,6 @@ struct IDirectInput_t: public IDirectInputA {
 
   IDirectInput_t()
     : _ref_count(1)
-    , _window(nullptr)
     , _hinst(nullptr)
     , _version(0)
   {}
@@ -38,8 +37,6 @@ struct IDirectInput_t: public IDirectInputA {
 
 protected:
   int32_t _ref_count;
-  HWND _window;
-
   HINSTANCE _hinst;
   DWORD _version;
 };

@@ -11,7 +11,6 @@ ULONG __stdcall IDirectDraw_t::AddRef(void) {
 }
 
 ULONG __stdcall IDirectDraw_t::Release(void) {
-  __debugbreak();
   if (--_ref_count == 0) {
     // free thy self!
     delete this;
@@ -168,7 +167,6 @@ HRESULT __stdcall IDirectDraw_t::Initialize(GUID *a) {
 }
 
 HRESULT __stdcall IDirectDraw_t::RestoreDisplayMode() {
-  __debugbreak();
   return 0;
 }
 
@@ -203,14 +201,18 @@ HRESULT __stdcall IDirectDraw_t::SetDisplayMode(DWORD width,
 
   RECT rect = {0, 0, width, height};
   if (AdjustWindowRect(&rect, style, FALSE)) {
-    MoveWindow(_window, 64, 64, (rect.right-rect.left), (rect.bottom-rect.top), FALSE);
+//    MoveWindow(_window, 64, 64, (rect.right-rect.left), (rect.bottom-rect.top), FALSE);
+    SetWindowPos(_window, HWND_NOTOPMOST, 64, 64, (rect.right - rect.left), (rect.bottom - rect.top), SWP_SHOWWINDOW | SWP_FRAMECHANGED);
   }
   else {
     MoveWindow(_window, 64, 64, width + 32, height + 32, FALSE);
   }
 
+
   UpdateWindow(_window);
   ShowWindow(_window, SW_SHOW);
+
+  RedrawWindow(nullptr, nullptr, nullptr, RDW_INVALIDATE);
 
   return DD_OK;
 }
@@ -222,7 +224,6 @@ HRESULT __stdcall IDirectDraw_t::WaitForVerticalBlank(DWORD a, HANDLE b) {
 
 void IDirectDraw_t::_freeSurface(IDirectDrawSurface_t *s) {
   if (_primarySurface == s) {
-    __debugbreak();
     _primarySurface = nullptr;
   }
   for (auto itt = _surfaces.begin(); itt != _surfaces.end();) {
@@ -295,4 +296,7 @@ void IDirectDraw_t::_redrawWindow() {
 
   ReleaseDC(_window, dc);
   ValidateRect(_window, NULL);
+
+  // dont burn the CPU
+  Sleep(5);
 }

@@ -8,7 +8,6 @@ ULONG __stdcall IDirectDrawPalette_t::AddRef(void) {
 }
 
 ULONG __stdcall IDirectDrawPalette_t::Release(void) {
-  __debugbreak();
   if (--_ref_count == 0) {
     _ddraw->_freePalette(this);
     return 0;

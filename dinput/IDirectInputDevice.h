@@ -10,7 +10,8 @@ struct IDirectInputDevice_t : public IDirectInputDeviceA {
   IDirectInputDevice_t(IDirectInput_t *dinput)
     : _ref_count(1)
     , _dinput(dinput)
-    , _format(nullptr) {}
+    , _format(nullptr)
+    , _window(nullptr) {}
 
   ULONG __stdcall AddRef(void) override;
 
@@ -42,6 +43,9 @@ protected:
   IDirectInput_t *_dinput;
   const GUID *_guid;
   const DIDATAFORMAT *_format;
-
+  HWND _window;
   POINT _old_mouse_pos;
+
+
+  SHORT _key_state[256];
 };

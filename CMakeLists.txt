@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(ddraw)
+project(dxemu)
 
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
