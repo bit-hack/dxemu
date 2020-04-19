@@ -9,6 +9,8 @@
 #include <ddraw.h>
 
 #include "types.h"
+#include "log.h"
+
 
 struct IDirectDraw_t : public IDirectDraw {
 

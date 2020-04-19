@@ -6,7 +6,6 @@
 #include "IDirectDrawSurface.h"
 
 ULONG __stdcall IDirectDraw_t::AddRef(void) {
-  __debugbreak();
   return ++_ref_count;
 }
 
@@ -20,6 +19,8 @@ ULONG __stdcall IDirectDraw_t::Release(void) {
 }
 
 HRESULT __stdcall IDirectDraw_t::QueryInterface(REFIID riid, void **ppvObject) {
+  log_t::inst().printf("%s()\n", __func__);
+
   if (!ppvObject) {
     return E_POINTER;
   }
@@ -29,6 +30,7 @@ HRESULT __stdcall IDirectDraw_t::QueryInterface(REFIID riid, void **ppvObject) {
     return E_NOINTERFACE;
   }
   if (riid == IID_IDirectDraw2) {
+    this->AddRef();
     *ppvObject = this;
     return DD_OK;
   }
@@ -59,7 +61,6 @@ HRESULT __stdcall IDirectDraw_t::CreatePalette(
     DWORD dwFlags, LPPALETTEENTRY lpDDColorArray,
     LPDIRECTDRAWPALETTE *lplpDDPalette, IUnknown *pUnkOuter) {
 
-//  __debugbreak();
   *lplpDDPalette = nullptr;
   IDirectDrawPalette_t *palette = new IDirectDrawPalette_t(this);
   HRESULT res = palette->Initialize(this, dwFlags, lpDDColorArray);
@@ -77,6 +78,7 @@ HRESULT __stdcall IDirectDraw_t::CreatePalette(
 HRESULT __stdcall IDirectDraw_t::CreateSurface(
     LPDDSURFACEDESC desc, LPDIRECTDRAWSURFACE *lplpDDSurface,
     IUnknown *pUnkOuter) {
+  log_t::inst().printf("%s\n", __func__);
 
   *lplpDDSurface = nullptr;
   IDirectDrawSurface_t *surface = new IDirectDrawSurface_t(this);
@@ -107,11 +109,29 @@ HRESULT __stdcall IDirectDraw_t::DuplicateSurface(LPDIRECTDRAWSURFACE a,
   return 0;
 }
 
-HRESULT __stdcall IDirectDraw_t::EnumDisplayModes(DWORD a, LPDDSURFACEDESC b,
-                                                  LPVOID c,
-                                                  LPDDENUMMODESCALLBACK d) {
+HRESULT __stdcall IDirectDraw_t::EnumDisplayModes(DWORD dwFlags,
+                                                  LPDDSURFACEDESC lpDDSurfaceDesc2,
+                                                  LPVOID lpContext,
+                                                  LPDDENUMMODESCALLBACK lpEnumModesCallback) {
   __debugbreak();
-  return 0;
+  log_t::inst().printf("%s(%d, %p, %p, %p)\n", __func__, dwFlags, lpDDSurfaceDesc2, lpContext, lpEnumModesCallback);
+
+  DDSURFACEDESC desc = {0};
+  desc.dwSize = sizeof(DDSURFACEDESC);
+  desc.dwFlags = DDSD_BACKBUFFERCOUNT | DDSD_HEIGHT | DDSD_REFRESHRATE | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_CAPS;
+  desc.dwBackBufferCount = 1;
+  desc.dwWidth = 640;
+  desc.dwHeight = 480;
+  desc.dwRefreshRate = 60;
+  desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_STANDARDVGAMODE | DDSCAPS_VISIBLE;
+
+  desc.ddpfPixelFormat.dwFlags = DDPF_RGB;
+  desc.ddpfPixelFormat.dwRGBBitCount = 8;
+  desc.ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
+
+  HRESULT res = lpEnumModesCallback(&desc, lpContext);
+
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDraw_t::EnumSurfaces(DWORD a, LPDDSURFACEDESC b,
@@ -126,9 +146,21 @@ HRESULT __stdcall IDirectDraw_t::FlipToGDISurface() {
   return 0;
 }
 
-HRESULT __stdcall IDirectDraw_t::GetCaps(LPDDCAPS a, LPDDCAPS b) {
-  __debugbreak();
-  return 0;
+HRESULT __stdcall IDirectDraw_t::GetCaps(LPDDCAPS lpDDDriverCaps,
+                                         LPDDCAPS lpDDHELCaps) {
+  log_t::inst().printf("%s(%p, %p)\n", __func__, lpDDDriverCaps, lpDDHELCaps);
+
+  if (lpDDDriverCaps->dwSize != sizeof(DDCAPS)) {
+    return DDERR_INVALIDOBJECT;
+  }
+
+  lpDDDriverCaps->dwCaps = DDCAPS_BLT;
+  lpDDDriverCaps->dwCaps2 = 0;
+  lpDDDriverCaps->dwPalCaps = DDPCAPS_8BIT | DDPCAPS_ALLOW256;
+  lpDDDriverCaps->dwVidMemTotal = 16 * 1024 * 1024;  // 16Mb
+  lpDDDriverCaps->dwVidMemFree = 16 * 1024 * 1024;
+
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDraw_t::GetDisplayMode(LPDDSURFACEDESC desc) {
@@ -162,6 +194,8 @@ HRESULT __stdcall IDirectDraw_t::GetVerticalBlankStatus(LPBOOL a) {
 }
 
 HRESULT __stdcall IDirectDraw_t::Initialize(GUID *a) {
+  log_t::inst().printf("%s()\n", __func__);
+
   memset(&_displayMode, 0, sizeof(_displayMode));
   return DD_OK;
 }
@@ -171,6 +205,7 @@ HRESULT __stdcall IDirectDraw_t::RestoreDisplayMode() {
 }
 
 HRESULT __stdcall IDirectDraw_t::SetCooperativeLevel(HWND window, DWORD level) {
+  log_t::inst().printf("%s(%p, %d)\n", __func__, window, level);
 
   _window = window;
 
@@ -186,6 +221,7 @@ HRESULT __stdcall IDirectDraw_t::SetCooperativeLevel(HWND window, DWORD level) {
 HRESULT __stdcall IDirectDraw_t::SetDisplayMode(DWORD width,
                                                 DWORD height,
                                                 DWORD bpp) {
+  log_t::inst().printf("%s(%d, %d, %d)\n", __func__, width, height, bpp);
 
   _displayMode._width  = width;
   _displayMode._height = height;
@@ -201,13 +237,15 @@ HRESULT __stdcall IDirectDraw_t::SetDisplayMode(DWORD width,
 
   RECT rect = {0, 0, width, height};
   if (AdjustWindowRect(&rect, style, FALSE)) {
-//    MoveWindow(_window, 64, 64, (rect.right-rect.left), (rect.bottom-rect.top), FALSE);
-    SetWindowPos(_window, HWND_NOTOPMOST, 64, 64, (rect.right - rect.left), (rect.bottom - rect.top), SWP_SHOWWINDOW | SWP_FRAMECHANGED);
+    SetWindowPos(_window,
+                 HWND_NOTOPMOST,
+                 64, 64,
+                 (rect.right - rect.left), (rect.bottom - rect.top),
+                 SWP_SHOWWINDOW | SWP_FRAMECHANGED);
   }
   else {
     MoveWindow(_window, 64, 64, width + 32, height + 32, FALSE);
   }
-
 
   UpdateWindow(_window);
   ShowWindow(_window, SW_SHOW);
@@ -219,7 +257,7 @@ HRESULT __stdcall IDirectDraw_t::SetDisplayMode(DWORD width,
 
 HRESULT __stdcall IDirectDraw_t::WaitForVerticalBlank(DWORD a, HANDLE b) {
   __debugbreak();
-  return 0;
+  return DD_OK;
 }
 
 void IDirectDraw_t::_freeSurface(IDirectDrawSurface_t *s) {
@@ -298,5 +336,5 @@ void IDirectDraw_t::_redrawWindow() {
   ValidateRect(_window, NULL);
 
   // dont burn the CPU
-  Sleep(5);
+  Sleep(1);
 }

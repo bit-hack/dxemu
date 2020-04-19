@@ -43,6 +43,10 @@ HRESULT __stdcall IDirectDrawSurface_t::Blt(LPRECT lpDstRect,
                                             DWORD dwFlags,
                                             LPDDBLTFX lpDDBltFX) {
 
+  if (!lpDDSrcSurface) {
+    return DDERR_INVALIDPARAMS;
+  }
+
   const IDirectDrawSurface_t *source = (const IDirectDrawSurface_t*)lpDDSrcSurface;
 
   const uint8_t *src = source->_buffer._pixels;
@@ -76,11 +80,14 @@ HRESULT __stdcall IDirectDrawSurface_t::BltBatch(LPDDBLTBATCH a, DWORD b,
   return 0;
 }
 
-HRESULT __stdcall IDirectDrawSurface_t::BltFast(DWORD a, DWORD b,
-                                                IDirectDrawSurface *c, LPRECT d,
-                                                DWORD e) {
+HRESULT __stdcall IDirectDrawSurface_t::BltFast(DWORD dwX,
+                                                DWORD dwY,
+                                                IDirectDrawSurface *lpDDSrcSurface,
+                                                LPRECT lpSrcRect,
+                                                DWORD dwTrans) {
+
   __debugbreak();
-  return 0;
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::DeleteAttachedSurface(
@@ -109,6 +116,8 @@ HRESULT __stdcall IDirectDrawSurface_t::Flip(IDirectDrawSurface *a, DWORD b) {
 HRESULT __stdcall IDirectDrawSurface_t::GetAttachedSurface(
     LPDDSCAPS a,
     IDirectDrawSurface **b) {
+  log_t::inst().printf("%s\n", __func__);
+
   if (!b) {
     return DDERR_INVALIDPARAMS;
   }
@@ -122,9 +131,20 @@ HRESULT __stdcall IDirectDrawSurface_t::GetBltStatus(DWORD a) {
   return 0;
 }
 
-HRESULT __stdcall IDirectDrawSurface_t::GetCaps(LPDDSCAPS a) {
+HRESULT __stdcall IDirectDrawSurface_t::GetCaps(LPDDSCAPS lpDDSCaps) {
   __debugbreak();
-  return 0;
+  if (!lpDDSCaps) {
+    return DDERR_INVALIDPARAMS;
+  }
+
+  lpDDSCaps->dwCaps = DDSCAPS_PALETTE;
+
+  if (_ddraw->_primarySurface == this) {
+    lpDDSCaps->dwCaps |= DDSCAPS_PRIMARYSURFACE;
+    lpDDSCaps->dwCaps |= DDSCAPS_STANDARDVGAMODE;
+  }
+
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::GetClipper(IDirectDrawClipper **out) {
@@ -169,6 +189,7 @@ HRESULT __stdcall IDirectDrawSurface_t::GetSurfaceDesc(LPDDSURFACEDESC desc) {
 
 HRESULT __stdcall IDirectDrawSurface_t::Initialize(IDirectDraw *ddraw,
                                                    LPDDSURFACEDESC lpDesc) {
+  log_t::inst().printf("%s\n", __func__);
 
   const DDSURFACEDESC &desc = *lpDesc;
   if (desc.dwSize != sizeof(DDSURFACEDESC)) {
@@ -179,7 +200,11 @@ HRESULT __stdcall IDirectDrawSurface_t::Initialize(IDirectDraw *ddraw,
     return DDERR_INVALIDPARAMS;
   }
 
-  _buffer._bpp = 1;
+  _buffer._bpp    = 1;
+  // diablo 1 demo seems to need this as it has a valid DDSCAPS but doesnt mark it as valid in dwFlags.
+  _buffer._width  = _ddraw->_displayMode._width;
+  _buffer._height = _ddraw->_displayMode._height;
+  _buffer._pitch  = _buffer._width;
 
   if (desc.dwFlags & DDSD_PIXELFORMAT) {
     _buffer._bpp = (desc.ddpfPixelFormat.dwRGBBitCount / 8);
@@ -191,7 +216,7 @@ HRESULT __stdcall IDirectDrawSurface_t::Initialize(IDirectDraw *ddraw,
       _buffer._bpp = 1;
     }
     if (caps & DDSCAPS_PRIMARYSURFACE) {
-      _buffer._bpp = _ddraw->_displayMode._bpp / 8;
+      _buffer._bpp    = _ddraw->_displayMode._bpp / 8;
       _buffer._width  = _ddraw->_displayMode._width;
       _buffer._height = _ddraw->_displayMode._height;
       _buffer._pitch  = _buffer._width * _buffer._bpp;

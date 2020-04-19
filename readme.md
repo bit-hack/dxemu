@@ -12,7 +12,7 @@ By reimplementing the DirectX APIs we can provide the same interface an old game
 
 ## Using DXEMU
 
-- Unzip the latest DLL files from the release folder into the same folder as your games executable
+- Unzip the latest DLL files from the "release" folder into the same folder as your games executable
 
 
 ## Features
@@ -25,18 +25,33 @@ By reimplementing the DirectX APIs we can provide the same interface an old game
 
 - Fallout 1
 - Fallout 2
+- Diablo
 
 
 ## Roadmap
 
 - Reduce keyboard and mouse input lag
-- Support more games
 - Support more DirectDraw and DirectInput functionality
 - Implement DirectSound API
 - Implement a config file for customizations
 - Implement a log file for diagnostics
+- Remove any hardcoded game support 
+- Support more games
+  - Command & Conquer
+  - Warcraft 2
+  - Theme Hospital
+  - Dungeon Keeper (non D3D)
 
 
 ## Screenshots
 
 ![](screenshots/fallout.jpg?raw=true "Fallout 1")
+![](screenshots/diablo.jpg?raw=true "Diablo")
+
+
+## References
+
+- Tricks of the Windows Game Programming Gurus
+- Windows Graphics Programming
+- MSDN
+- DDraw.h and DInput.h
