@@ -19,7 +19,7 @@ ULONG __stdcall IDirectDraw_t::Release(void) {
 }
 
 HRESULT __stdcall IDirectDraw_t::QueryInterface(REFIID riid, void **ppvObject) {
-  log_t::inst().printf("%s()\n", __func__);
+  log_t::inst().printf("%s()\n", __FUNCTION__);
 
   if (!ppvObject) {
     return E_POINTER;
@@ -76,9 +76,10 @@ HRESULT __stdcall IDirectDraw_t::CreatePalette(
 }
 
 HRESULT __stdcall IDirectDraw_t::CreateSurface(
-    LPDDSURFACEDESC desc, LPDIRECTDRAWSURFACE *lplpDDSurface,
+    LPDDSURFACEDESC desc,
+    LPDIRECTDRAWSURFACE *lplpDDSurface,
     IUnknown *pUnkOuter) {
-  log_t::inst().printf("%s\n", __func__);
+  log_t::inst().printf("%s(%p, %p, %p)\n", __FUNCTION__, desc, lplpDDSurface, pUnkOuter);
 
   *lplpDDSurface = nullptr;
   IDirectDrawSurface_t *surface = new IDirectDrawSurface_t(this);
@@ -93,10 +94,6 @@ HRESULT __stdcall IDirectDraw_t::CreateSurface(
   if (desc->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE) {
     // this is the primary surface
     _primarySurface = surface;
-
-    const size_t size = surface->_buffer._width * surface->_buffer._height;
-    _pixels.reset(new uint32_t[size]);
-    memset(_pixels.get(), 0xff, size * sizeof(uint32_t));
   }
 
   *lplpDDSurface = surface;
@@ -113,8 +110,10 @@ HRESULT __stdcall IDirectDraw_t::EnumDisplayModes(DWORD dwFlags,
                                                   LPDDSURFACEDESC lpDDSurfaceDesc2,
                                                   LPVOID lpContext,
                                                   LPDDENUMMODESCALLBACK lpEnumModesCallback) {
-  __debugbreak();
-  log_t::inst().printf("%s(%d, %p, %p, %p)\n", __func__, dwFlags, lpDDSurfaceDesc2, lpContext, lpEnumModesCallback);
+
+  // used by COMI and DK95
+
+  log_t::inst().printf("%s(%d, %p, %p, %p)\n", __FUNCTION__, dwFlags, lpDDSurfaceDesc2, lpContext, lpEnumModesCallback);
 
   DDSURFACEDESC desc = {0};
   desc.dwSize = sizeof(DDSURFACEDESC);
@@ -148,17 +147,41 @@ HRESULT __stdcall IDirectDraw_t::FlipToGDISurface() {
 
 HRESULT __stdcall IDirectDraw_t::GetCaps(LPDDCAPS lpDDDriverCaps,
                                          LPDDCAPS lpDDHELCaps) {
-  log_t::inst().printf("%s(%p, %p)\n", __func__, lpDDDriverCaps, lpDDHELCaps);
+  log_t::inst().printf("%s(%p, %p)\n", __FUNCTION__, lpDDDriverCaps, lpDDHELCaps);
 
-  if (lpDDDriverCaps->dwSize != sizeof(DDCAPS)) {
-    return DDERR_INVALIDOBJECT;
+  if (lpDDDriverCaps) {
+
+    // taken from TSDEMO
+    lpDDDriverCaps->dwCaps = 
+      DDCAPS_ALIGNBOUNDARYSRC | 
+      DDCAPS_ALIGNSIZEDEST | 
+      DDCAPS_ALIGNSIZESRC | 
+      DDCAPS_BLTFOURCC |
+      DDCAPS_3D |
+      DDCAPS_ALPHA |
+      DDCAPS_BLT |
+      DDCAPS_BLTCOLORFILL |
+      DDCAPS_BLTDEPTHFILL |
+      DDCAPS_BLTFOURCC |
+      DDCAPS_BLTQUEUE |
+      DDCAPS_BLTSTRETCH |
+      DDCAPS_CANBLTSYSMEM |
+      DDCAPS_COLORKEY |
+      DDCAPS_COLORKEYHWASSIST |
+      DDCAPS_GDI |
+      DDCAPS_OVERLAY |
+      DDCAPS_OVERLAYCANTCLIP;
+
+    // tiberium sun expects 364 different DDraw version?
+    if (lpDDDriverCaps->dwSize != sizeof(DDCAPS)) {
+      return DDERR_INVALIDOBJECT;
+    }
+    lpDDDriverCaps->dwCaps = DDCAPS_BLT;
+    lpDDDriverCaps->dwCaps2 = 0;
+    lpDDDriverCaps->dwPalCaps = DDPCAPS_8BIT | DDPCAPS_ALLOW256;
+    lpDDDriverCaps->dwVidMemTotal = 16 * 1024 * 1024;  // 16Mb
+    lpDDDriverCaps->dwVidMemFree = 16 * 1024 * 1024;
   }
-
-  lpDDDriverCaps->dwCaps = DDCAPS_BLT;
-  lpDDDriverCaps->dwCaps2 = 0;
-  lpDDDriverCaps->dwPalCaps = DDPCAPS_8BIT | DDPCAPS_ALLOW256;
-  lpDDDriverCaps->dwVidMemTotal = 16 * 1024 * 1024;  // 16Mb
-  lpDDDriverCaps->dwVidMemFree = 16 * 1024 * 1024;
 
   return DD_OK;
 }
@@ -194,7 +217,7 @@ HRESULT __stdcall IDirectDraw_t::GetVerticalBlankStatus(LPBOOL a) {
 }
 
 HRESULT __stdcall IDirectDraw_t::Initialize(GUID *a) {
-  log_t::inst().printf("%s()\n", __func__);
+  log_t::inst().printf("%s(%p)\n", __FUNCTION__, a);
 
   memset(&_displayMode, 0, sizeof(_displayMode));
   return DD_OK;
@@ -205,15 +228,18 @@ HRESULT __stdcall IDirectDraw_t::RestoreDisplayMode() {
 }
 
 HRESULT __stdcall IDirectDraw_t::SetCooperativeLevel(HWND window, DWORD level) {
-  log_t::inst().printf("%s(%p, %d)\n", __func__, window, level);
+  log_t::inst().printf("%s(%p, %d)\n", __FUNCTION__, window, level);
 
   _window = window;
 
-  RECT rect = {0};
-  if (GetClientRect(window, &rect)) {
-    _displayMode._width = rect.right;
-    _displayMode._height = rect.bottom;
+  if (_displayMode._width == 0 || _displayMode._height == 0) {
+    RECT rect = {0};
+    if (GetClientRect(window, &rect)) {
+      _displayMode._width = rect.right;
+      _displayMode._height = rect.bottom;
+    }
   }
+  _allocateTarget();
 
   return DD_OK;
 }
@@ -221,36 +247,14 @@ HRESULT __stdcall IDirectDraw_t::SetCooperativeLevel(HWND window, DWORD level) {
 HRESULT __stdcall IDirectDraw_t::SetDisplayMode(DWORD width,
                                                 DWORD height,
                                                 DWORD bpp) {
-  log_t::inst().printf("%s(%d, %d, %d)\n", __func__, width, height, bpp);
+  log_t::inst().printf("%s(%d, %d, %d)\n", __FUNCTION__, width, height, bpp);
 
   _displayMode._width  = width;
   _displayMode._height = height;
   _displayMode._bpp    = bpp;
 
-  ClipCursor(nullptr);
-
-  int32_t style = WS_OVERLAPPED | WS_TILEDWINDOW;
-  int32_t styleEx = WS_EX_OVERLAPPEDWINDOW;
-
-  LONG_PTR ptr = SetWindowLongPtrA(_window, GWL_STYLE, style);
-  ptr = SetWindowLongPtrA(_window, GWL_EXSTYLE, styleEx);
-
-  RECT rect = {0, 0, width, height};
-  if (AdjustWindowRect(&rect, style, FALSE)) {
-    SetWindowPos(_window,
-                 HWND_NOTOPMOST,
-                 64, 64,
-                 (rect.right - rect.left), (rect.bottom - rect.top),
-                 SWP_SHOWWINDOW | SWP_FRAMECHANGED);
-  }
-  else {
-    MoveWindow(_window, 64, 64, width + 32, height + 32, FALSE);
-  }
-
-  UpdateWindow(_window);
-  ShowWindow(_window, SW_SHOW);
-
-  RedrawWindow(nullptr, nullptr, nullptr, RDW_INVALIDATE);
+  _resizeWindow(width, height);
+  _allocateTarget();
 
   return DD_OK;
 }
@@ -287,6 +291,14 @@ void IDirectDraw_t::_redrawWindow() {
     return;
   }
 
+  // Some games (COMI) like to resize the window a few times
+  RECT rect = {0};
+  if (GetClientRect(_window, &rect)) {
+    if (rect.right > _displayMode._width || rect.bottom > _displayMode._height) {
+      _resizeWindow(_displayMode._width, _displayMode._height);
+    }
+  }
+
   HDC dc = GetDC(_window);
   if (dc == NULL) {
     return;
@@ -310,7 +322,7 @@ void IDirectDraw_t::_redrawWindow() {
     }
 
   }
-  
+
   BITMAPINFO bmp;
   memset(&bmp, 0, sizeof(bmp));
   BITMAPINFOHEADER &b = bmp.bmiHeader;
@@ -337,4 +349,40 @@ void IDirectDraw_t::_redrawWindow() {
 
   // dont burn the CPU
   Sleep(1);
+}
+
+void IDirectDraw_t::_resizeWindow(int32_t width, int32_t height) {
+
+  ClipCursor(nullptr);
+
+  int32_t style   = WS_OVERLAPPED | WS_TILEDWINDOW;
+  int32_t styleEx = WS_EX_OVERLAPPEDWINDOW;
+
+  LONG_PTR ptr1 = SetWindowLongPtrA(_window, GWL_STYLE, style);
+  LONG_PTR ptr2 = SetWindowLongPtrA(_window, GWL_EXSTYLE, styleEx);
+
+  const LONG_PTR real_style = GetWindowLongPtrA(_window, GWL_STYLE);
+
+  RECT rect = {0, 0, width, height};
+  if (AdjustWindowRect(&rect, real_style, FALSE)) {
+    SetWindowPos(_window,
+                 HWND_NOTOPMOST,
+                 64, 64,
+                 (rect.right - rect.left), (rect.bottom - rect.top),
+                 SWP_SHOWWINDOW | SWP_FRAMECHANGED);
+  }
+  else {
+    MoveWindow(_window, 64, 64, width + 32, height + 32, FALSE);
+  }
+
+  UpdateWindow(_window);
+  ShowWindow(_window, SW_SHOW);
+
+  RedrawWindow(nullptr, nullptr, nullptr, RDW_INVALIDATE);
+}
+
+void IDirectDraw_t::_allocateTarget() {
+  const size_t size = _displayMode._width * _displayMode._height;
+  _pixels.reset(new uint32_t[size]);
+  memset(_pixels.get(), 0xff, size * sizeof(uint32_t));
 }

@@ -44,6 +44,8 @@ HRESULT __stdcall IDirectDrawSurface_t::Blt(LPRECT lpDstRect,
                                             LPDDBLTFX lpDDBltFX) {
 
   if (!lpDDSrcSurface) {
+    _ddraw->_redrawWindow();
+    // COMI comes in here and I think DK95 did also (is nullptr primary surface?)
     return DDERR_INVALIDPARAMS;
   }
 
@@ -109,14 +111,16 @@ HRESULT __stdcall IDirectDrawSurface_t::EnumOverlayZOrders(
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::Flip(IDirectDrawSurface *a, DWORD b) {
-  __debugbreak();
-  return 0;
+  if (a == _ddraw->_primarySurface) {
+    _ddraw->_redrawWindow();
+  }
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::GetAttachedSurface(
     LPDDSCAPS a,
     IDirectDrawSurface **b) {
-  log_t::inst().printf("%s\n", __func__);
+  log_t::inst().printf("%s\n", __FUNCTION__);
 
   if (!b) {
     return DDERR_INVALIDPARAMS;
@@ -127,8 +131,11 @@ HRESULT __stdcall IDirectDrawSurface_t::GetAttachedSurface(
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::GetBltStatus(DWORD a) {
-  __debugbreak();
-  return 0;
+  if (a == DDGBS_CANBLT) {
+    // blits are instantaneous
+    return DD_OK;
+  }
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::GetCaps(LPDDSCAPS lpDDSCaps) {
@@ -178,18 +185,77 @@ HRESULT __stdcall IDirectDrawSurface_t::GetPalette(IDirectDrawPalette **out) {
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::GetPixelFormat(LPDDPIXELFORMAT format) {
+
+  memset(format, 0, sizeof(DDPIXELFORMAT));
+  format->dwSize = sizeof(DDPIXELFORMAT);
+
+  switch (_buffer._bpp) {
+  case 1:
+    format->dwFlags = DDPF_PALETTEINDEXED8;
+    format->dwRGBBitCount = 8;
+    return DD_OK;
+  case 2:
+    format->dwFlags = DDPF_RGB;
+    format->dwRGBBitCount = 16;
+    format->dwRBitMask = 0xF800;  // 5
+    format->dwGBitMask = 0x07E0;  // 6
+    format->dwBBitMask = 0x001F;  // 5
+    format->dwRGBAlphaBitMask = 0;
+    return DD_OK;
+  }
+
+  // unsupported format
   __debugbreak();
-  return 0;
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::GetSurfaceDesc(LPDDSURFACEDESC desc) {
-  __debugbreak();
-  return 0;
+
+  DDSURFACEDESC &surf = *desc;
+
+  memset(&surf, 0, sizeof(surf));
+  surf.dwSize = sizeof(surf);
+  surf.ddpfPixelFormat.dwSize = sizeof(surf.ddpfPixelFormat);
+
+  surf.dwFlags = 
+    DDSD_HEIGHT |
+    DDSD_PITCH |
+    DDSD_WIDTH |
+    DDSD_PIXELFORMAT |
+    DDSD_CAPS;
+
+  surf.dwWidth        = _buffer._width;
+  surf.dwHeight       = _buffer._height;
+  surf.lPitch         = _buffer._pitch;  // union with linearSize
+  surf.lpSurface      = _buffer._pixels;
+
+  surf.ddsCaps.dwCaps = DDSCAPS_LOCALVIDMEM | DDSCAPS_VIDEOMEMORY;
+
+  if (this == _ddraw->_primarySurface) {
+    surf.ddsCaps.dwCaps |= DDSCAPS_PRIMARYSURFACE;
+    surf.ddsCaps.dwCaps |= DDSCAPS_PRIMARYSURFACELEFT;
+    surf.ddsCaps.dwCaps |= DDSCAPS_VISIBLE;
+  }
+
+  switch (_buffer._bpp) {
+  case 1:
+    surf.ddpfPixelFormat.dwFlags |= DDPF_PALETTEINDEXED8;
+    break;
+  case 4:
+    surf.ddpfPixelFormat.dwFlags |= DDPF_RGB;
+    surf.ddpfPixelFormat.dwRGBBitCount = 32;  // may have to be 24?
+    surf.ddpfPixelFormat.dwRBitMask = 0x00ff0000;
+    surf.ddpfPixelFormat.dwGBitMask = 0x0000ff00;
+    surf.ddpfPixelFormat.dwBBitMask = 0x000000ff;
+    break;
+  }
+
+  return DD_OK;
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::Initialize(IDirectDraw *ddraw,
                                                    LPDDSURFACEDESC lpDesc) {
-  log_t::inst().printf("%s\n", __func__);
+  log_t::inst().printf("%s(%p, %p)\n", __FUNCTION__, ddraw, lpDesc);
 
   const DDSURFACEDESC &desc = *lpDesc;
   if (desc.dwSize != sizeof(DDSURFACEDESC)) {
@@ -260,40 +326,12 @@ HRESULT __stdcall IDirectDrawSurface_t::Lock(LPRECT lpDestRect,
     return DDERR_INVALIDPARAMS;
   }
 
-  memset(&surf, 0, sizeof(surf));
-  surf.dwSize = sizeof(surf);
-  surf.ddpfPixelFormat.dwSize = sizeof(surf.ddpfPixelFormat);
+  // get our surface descriptor
+  GetSurfaceDesc(lpDDSurfaceDesc);
 
-  surf.dwFlags = 
-    DDSD_HEIGHT |
-    DDSD_PITCH |
-    DDSD_WIDTH |
-    DDSD_PIXELFORMAT |
-    DDSD_REFRESHRATE |
-    DDSD_BACKBUFFERCOUNT;
-
-  surf.dwRefreshRate = 60;
-  surf.dwBackBufferCount = 1;
-
-  surf.dwWidth       = _buffer._width;
-  surf.dwHeight      = _buffer._height;
-  surf.lPitch        = _buffer._pitch;  // union with linearSize
-  surf.lpSurface     = _buffer._pixels;
-
+  // we dont handle this yet but might need to
   if (lpDestRect) {
     __debugbreak();
-  }
-
-  switch (_buffer._bpp) {
-  case 1:
-    surf.ddpfPixelFormat.dwFlags |= DDPF_PALETTEINDEXED8;
-    break;
-  case 4:
-    surf.ddpfPixelFormat.dwFlags |= DDPF_RGB;
-    surf.ddpfPixelFormat.dwRGBBitCount = 32;  // may have to be 24?
-    surf.ddpfPixelFormat.dwRBitMask = 0x00ff0000;
-    surf.ddpfPixelFormat.dwGBitMask = 0x0000ff00;
-    surf.ddpfPixelFormat.dwBBitMask = 0x000000ff;
   }
 
   return DD_OK;

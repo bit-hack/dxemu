@@ -4,7 +4,8 @@
 
 #include "IDirectInput.h"
 
-extern HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, 
+extern HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst,
+                                         DWORD dwVersion, 
                                          LPDIRECTINPUT *lplpDI,
                                          IUnknown *pUnkOuter) {
 #pragma comment(linker, "/EXPORT:DirectInputCreateA=" __FUNCDNAME__)

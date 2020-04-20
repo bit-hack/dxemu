@@ -17,8 +17,9 @@ By reimplementing the DirectX APIs we can provide the same interface an old game
 
 ## Features
 
-- Bypass "exlusive mode" allowing old games to run in a window, cooperatively with other applications.
-- Fix color palette issues when using original DirectDraw.
+- Bypass "exclusive mode" allowing old games to run in a window, cooperatively with other applications.
+- Fix color palette issues caused by using the original DirectDraw.
+- Privileged instruction handler
 
 
 ## Supported games
@@ -26,6 +27,7 @@ By reimplementing the DirectX APIs we can provide the same interface an old game
 - Fallout 1
 - Fallout 2
 - Diablo
+- The Curse Of Monkey Island Demo
 
 
 ## Roadmap
@@ -41,12 +43,15 @@ By reimplementing the DirectX APIs we can provide the same interface an old game
   - Warcraft 2
   - Theme Hospital
   - Dungeon Keeper (non D3D)
+  - Abes Oddysse
+  - Age of empires
 
 
 ## Screenshots
 
 ![](screenshots/fallout.jpg?raw=true "Fallout 1")
 ![](screenshots/diablo.jpg?raw=true "Diablo")
+![](screenshots/COMI.jpg?raw=true "The Curse Of Monkey Island")
 
 
 ## References
