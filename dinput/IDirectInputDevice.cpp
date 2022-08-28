@@ -3,7 +3,8 @@
 #define INITGUID
 #include "IDirectInputDevice.h"
 #include "IDirectInput.h"
-#include "log.h"
+
+#include "../common/log.h"
 
 
 static const std::map<uint8_t, uint8_t> keyMap = {

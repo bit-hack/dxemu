@@ -4,6 +4,9 @@
 
 #include "IDirectDraw.h"
 
+#include "../common/log.h"
+log_t *log_t::log;
+
 
 #define DEFINE_GUID_(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
     EXTERN_C const GUID DECLSPEC_SELECTANY name                             \
@@ -48,6 +51,7 @@ extern HRESULT WINAPI DirectDrawCreate(_In_ GUID FAR *lpGUID,
   AddVectoredExceptionHandler(1, vectoredHandler);
 
 #pragma comment(linker, "/EXPORT:DirectDrawCreate=" __FUNCDNAME__)
+  log_t::init("ddraw.log");
   log_t::inst().printf("%s(%p, %p, %p)\n", __FUNCTION__, lpGUID, lplpDD, pUnkOuter);
 
   if (lpGUID) {

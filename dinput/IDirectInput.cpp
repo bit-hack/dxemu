@@ -1,9 +1,9 @@
 #include "IDirectInput.h"
 #include "IDirectInputDevice.h"
-#include "log.h"
+
+#include "../common/log.h"
 
 ULONG __stdcall IDirectInput_t::AddRef(void) {
-  __debugbreak();
   return ++_ref_count;
 }
 
@@ -18,7 +18,6 @@ ULONG __stdcall IDirectInput_t::Release(void) {
 
 HRESULT __stdcall IDirectInput_t::QueryInterface(REFIID riid,
                                                  void **ppvObject) {
-  __debugbreak();
   return DI_OK;
 }
 

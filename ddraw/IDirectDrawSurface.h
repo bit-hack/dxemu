@@ -100,6 +100,9 @@ struct IDirectDrawSurface_t : public IDirectDrawSurface {
   HRESULT __stdcall UpdateOverlayZOrder(DWORD, IDirectDrawSurface *) override;
 
 protected:
+
+  bool _isPrimarySurface() const;
+
   struct buffer_t {
     uint32_t _width, _height, _pitch;
     uint8_t *_pixels;

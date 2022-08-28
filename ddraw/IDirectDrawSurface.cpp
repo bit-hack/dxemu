@@ -7,6 +7,8 @@
 #include "IDirectDrawSurface.h"
 #include "IDirectDrawPalette.h"
 
+#include "../common/log.h"
+
 
 ULONG __stdcall IDirectDrawSurface_t::AddRef(void) {
   return ++_ref_count;
@@ -44,7 +46,7 @@ HRESULT __stdcall IDirectDrawSurface_t::Blt(LPRECT lpDstRect,
                                             LPDDBLTFX lpDDBltFX) {
 
   if (!lpDDSrcSurface) {
-    _ddraw->_redrawWindow();
+    _ddraw->_updatePixels();
     // COMI comes in here and I think DK95 did also (is nullptr primary surface?)
     return DDERR_INVALIDPARAMS;
   }
@@ -57,8 +59,8 @@ HRESULT __stdcall IDirectDrawSurface_t::Blt(LPRECT lpDstRect,
   src += lpSrcRect->left + lpSrcRect->top * source->_buffer._pitch;
   dst += lpDstRect->left + lpDstRect->top * _buffer._pitch;
 
-  int32_t w = min(lpSrcRect->right - lpSrcRect->left,
-                  lpDstRect->right - lpDstRect->left);
+  int32_t w = min(lpSrcRect->right  - lpSrcRect->left,
+                  lpDstRect->right  - lpDstRect->left);
   int32_t h = min(lpSrcRect->bottom - lpSrcRect->top,
                   lpDstRect->bottom - lpDstRect->top);
 
@@ -70,9 +72,12 @@ HRESULT __stdcall IDirectDrawSurface_t::Blt(LPRECT lpDstRect,
     dst += _buffer._pitch;
   }
 
-  if (this == _ddraw->_primarySurface) {
-    _ddraw->_redrawWindow();
+  // if this is the primary surface
+  if (_isPrimarySurface()) {
+    _ddraw->_updatePixels();
+    _ddraw->_present();
   }
+
   return DD_OK;
 }
 
@@ -112,7 +117,7 @@ HRESULT __stdcall IDirectDrawSurface_t::EnumOverlayZOrders(
 
 HRESULT __stdcall IDirectDrawSurface_t::Flip(IDirectDrawSurface *a, DWORD b) {
   if (a == _ddraw->_primarySurface) {
-    _ddraw->_redrawWindow();
+    _ddraw->_present();
   }
   return DD_OK;
 }
@@ -373,8 +378,11 @@ HRESULT __stdcall IDirectDrawSurface_t::SetPalette(LPDIRECTDRAWPALETTE lpDDPalet
 }
 
 HRESULT __stdcall IDirectDrawSurface_t::Unlock(LPVOID a) {
-  if (this == _ddraw->_primarySurface) {
-    _ddraw->_redrawWindow();
+  if (_isPrimarySurface()) {
+    _ddraw->_updatePixels();
+
+    // this seems to be needed for fallouts main drawing as it doesnt call flip
+    _ddraw->_present();
   }
   return DD_OK;
 }
@@ -396,4 +404,8 @@ HRESULT __stdcall IDirectDrawSurface_t::UpdateOverlayZOrder(
     DWORD, IDirectDrawSurface *) {
   __debugbreak();
   return 0;
+}
+
+bool IDirectDrawSurface_t::_isPrimarySurface() const {
+  return (this == _ddraw->_primarySurface);
 }

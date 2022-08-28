@@ -6,13 +6,17 @@
 
 struct log_t {
 
+  static log_t *log;
+
   log_t(const char *path) : _path(path), _fd(nullptr) {}
 
-  static log_t &inst() {
-    static log_t *log = nullptr;
+  static void init(const char *name) {
     if (!log) {
-      log = new log_t("ddraw_log.txt");
+      log = new log_t(name);
     }
+  }
+
+  static log_t &inst() {
     assert(log);
     return *log;
   }

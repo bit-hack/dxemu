@@ -5,6 +5,8 @@
 #include "IDirectDrawPalette.h"
 #include "IDirectDrawSurface.h"
 
+#include "../common/log.h"
+
 ULONG __stdcall IDirectDraw_t::AddRef(void) {
   return ++_ref_count;
 }
@@ -285,7 +287,47 @@ void IDirectDraw_t::_freeClipper(IDirectDrawClipper_t *c) {
   }
 }
 
-void IDirectDraw_t::_redrawWindow() {
+void IDirectDraw_t::_present() {
+
+  if (!_primarySurface || !_pixels) {
+    return;
+  }
+
+  BITMAPINFO bmp;
+  memset(&bmp, 0, sizeof(bmp));
+  BITMAPINFOHEADER &b = bmp.bmiHeader;
+  b.biSize = sizeof(BITMAPINFOHEADER);
+  b.biBitCount = 32;
+  b.biWidth = _displayMode._width;
+  b.biHeight = _displayMode._height;
+  b.biPlanes = 1;
+  b.biCompression = BI_RGB;
+
+  HDC dc = GetDC(_window);
+  if (dc == NULL) {
+    return;
+  }
+
+  const int r =
+    StretchDIBits(dc,
+      // src
+      0, 0, int(b.biWidth), int(b.biHeight),
+      // dst
+      0, 0, int(b.biWidth), int(b.biHeight),
+      // pixels
+      _pixels.get(),
+      &bmp,
+      DIB_RGB_COLORS, SRCCOPY);
+
+  ReleaseDC(_window, dc);
+  ValidateRect(_window, NULL);
+
+  // note: this is a bottleneck so I presume this function is called a hell of a lot
+  // dont burn the CPU
+  Sleep(1);
+}
+
+void IDirectDraw_t::_updatePixels() {
 
   if (!_primarySurface || !_pixels) {
     return;
@@ -294,24 +336,23 @@ void IDirectDraw_t::_redrawWindow() {
   // Some games (COMI) like to resize the window a few times
   RECT rect = {0};
   if (GetClientRect(_window, &rect)) {
-    if (rect.right > _displayMode._width || rect.bottom > _displayMode._height) {
+    if (rect.right  > LONG(_displayMode._width )||
+        rect.bottom > LONG(_displayMode._height)) {
       _resizeWindow(_displayMode._width, _displayMode._height);
     }
   }
 
-  HDC dc = GetDC(_window);
-  if (dc == NULL) {
-    return;
-  }
-
   const auto &buffer = _primarySurface->_buffer;
 
+  // note: we should only do this if it has been written to
+
+  // regenerate the final image
   IDirectDrawPalette_t *pal = _primarySurface->_palette;
   if (pal) {
     uint8_t *src = buffer._pixels + buffer._pitch * (_displayMode._height-1);
     uint32_t *dst = _pixels.get();
-    for (int y = 0; y < _displayMode._height; ++y) {
-      for (int x = 0; x < _displayMode._width; ++x) {
+    for (uint32_t y = 0; y < _displayMode._height; ++y) {
+      for (uint32_t x = 0; x < _displayMode._width; ++x) {
 
         const auto &p = pal->_entry[src[x]];
 
@@ -320,35 +361,7 @@ void IDirectDraw_t::_redrawWindow() {
       dst += _displayMode._width;
       src -= buffer._pitch;
     }
-
   }
-
-  BITMAPINFO bmp;
-  memset(&bmp, 0, sizeof(bmp));
-  BITMAPINFOHEADER &b = bmp.bmiHeader;
-  b.biSize     = sizeof(BITMAPINFOHEADER);
-  b.biBitCount = 32;
-  b.biWidth    = _displayMode._width;
-  b.biHeight   = _displayMode._height;
-  b.biPlanes   = 1;
-  b.biCompression = BI_RGB;
-
-  const int r =
-      StretchDIBits(dc,
-                    // src
-                    0, 0, int(b.biWidth), int(b.biHeight),
-                    // dst
-                    0, 0, int(b.biWidth), int(b.biHeight),
-                    // pixels
-                    _pixels.get(),
-                    &bmp,
-                    DIB_RGB_COLORS, SRCCOPY);
-
-  ReleaseDC(_window, dc);
-  ValidateRect(_window, NULL);
-
-  // dont burn the CPU
-  Sleep(1);
 }
 
 void IDirectDraw_t::_resizeWindow(int32_t width, int32_t height) {
@@ -358,7 +371,7 @@ void IDirectDraw_t::_resizeWindow(int32_t width, int32_t height) {
   int32_t style   = WS_OVERLAPPED | WS_TILEDWINDOW;
   int32_t styleEx = WS_EX_OVERLAPPEDWINDOW;
 
-  LONG_PTR ptr1 = SetWindowLongPtrA(_window, GWL_STYLE, style);
+  LONG_PTR ptr1 = SetWindowLongPtrA(_window, GWL_STYLE,   style);
   LONG_PTR ptr2 = SetWindowLongPtrA(_window, GWL_EXSTYLE, styleEx);
 
   const LONG_PTR real_style = GetWindowLongPtrA(_window, GWL_STYLE);
@@ -378,6 +391,7 @@ void IDirectDraw_t::_resizeWindow(int32_t width, int32_t height) {
   UpdateWindow(_window);
   ShowWindow(_window, SW_SHOW);
 
+  // invalidate the window causing it to be redrawn
   RedrawWindow(nullptr, nullptr, nullptr, RDW_INVALIDATE);
 }
 

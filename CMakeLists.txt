@@ -8,3 +8,6 @@ add_library(ddraw SHARED ${SOURCE})
 
 file(GLOB SOURCE dinput/*.cpp dinput/*.h)
 add_library(dinput SHARED ${SOURCE})
+
+file(GLOB SOURCE dsound/*.cpp dsound/*.h)
+add_library(dsound SHARED ${SOURCE})

@@ -9,7 +9,6 @@
 #include <ddraw.h>
 
 #include "types.h"
-#include "log.h"
 
 
 struct IDirectDraw_t : public IDirectDraw {
@@ -80,8 +79,10 @@ struct IDirectDraw_t : public IDirectDraw {
   HRESULT __stdcall WaitForVerticalBlank(DWORD a, HANDLE b) override;
 
 protected:
+
   void _resizeWindow(int32_t w, int32_t h);
-  void _redrawWindow();
+  void _updatePixels();
+  void _present();
   void _allocateTarget();
 
   void _freeSurface(IDirectDrawSurface_t *s);

@@ -1,3 +1,5 @@
+#pragma once
+
 #define DIRECTINPUT_VERSION 0x300
 #include <dinput.h>
 
